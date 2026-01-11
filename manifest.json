@@ -1,0 +1,24 @@
+{
+  "name": "maique.rocks",
+  "short_name": "maique.rocks",
+  "description": "Daily affirmations that rock",
+  "start_url": "https://maique.rocks",
+  "display": "standalone",
+  "background_color": "#231206",
+  "theme_color": "#231206",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://maique.github.io/maique-rocks-pwa/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://maique.github.io/maique-rocks-pwa/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
