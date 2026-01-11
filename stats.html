@@ -102,15 +102,31 @@
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
+			gap: 15px;
 		}
 		
 		.tap-item:last-child {
 			border-bottom: none;
 		}
 		
+		.tap-info {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		
+		.tap-flag {
+			font-size: 1.5rem;
+		}
+		
 		.tap-device {
 			font-weight: 600;
 			color: #fdab00;
+		}
+		
+		.tap-browser {
+			color: #fdab0060;
+			font-size: 0.85rem;
 		}
 		
 		.tap-time {
@@ -164,6 +180,28 @@
 				</div>
 			</div>
 			
+			<div class="stats-grid">
+				<div class="stat-card">
+					<div class="stat-label">Top Country</div>
+					<div class="stat-value" id="top-country" style="font-size: 2rem;">🌍</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">Top Browser</div>
+					<div class="stat-value" id="top-browser" style="font-size: 1.5rem;">-</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">Countries</div>
+					<div class="stat-value" id="country-count">0</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">Browsers</div>
+					<div class="stat-value" id="browser-count">0</div>
+				</div>
+			</div>
+			
 			<div class="chart-container">
 				<div class="chart-title">Taps Over Time</div>
 				<canvas id="taps-chart"></canvas>
@@ -206,6 +244,16 @@
 		let tapsChart = null;
 		let hourlyChart = null;
 
+		// Convert country code to flag emoji
+		function countryToFlag(countryCode) {
+			if (!countryCode || countryCode === 'XX') return '🌍';
+			const codePoints = countryCode
+				.toUpperCase()
+				.split('')
+				.map(char => 127397 + char.charCodeAt());
+			return String.fromCodePoint(...codePoints);
+		}
+
 		// Listen for tap data
 		onValue(tapsRef, (snapshot) => {
 			const data = snapshot.val();
@@ -233,11 +281,33 @@
 			const desktop = taps.filter(t => t.device === 'Desktop').length;
 			const android = taps.filter(t => t.device === 'Android').length;
 			
+			// Count countries and browsers
+			const countryCounts = {};
+			const browserCounts = {};
+			taps.forEach(tap => {
+				const country = tap.country || 'XX';
+				const browser = tap.browser || 'Other';
+				countryCounts[country] = (countryCounts[country] || 0) + 1;
+				browserCounts[browser] = (browserCounts[browser] || 0) + 1;
+			});
+			
+			// Get top country and browser
+			const topCountry = Object.keys(countryCounts).sort((a, b) => 
+				countryCounts[b] - countryCounts[a]
+			)[0] || 'XX';
+			const topBrowser = Object.keys(browserCounts).sort((a, b) => 
+				browserCounts[b] - browserCounts[a]
+			)[0] || 'Other';
+			
 			// Update stat cards
 			document.getElementById('total-taps').textContent = total;
 			document.getElementById('ios-taps').textContent = ios;
 			document.getElementById('desktop-taps').textContent = desktop;
 			document.getElementById('android-taps').textContent = android;
+			document.getElementById('top-country').textContent = countryToFlag(topCountry);
+			document.getElementById('top-browser').textContent = topBrowser;
+			document.getElementById('country-count').textContent = Object.keys(countryCounts).length;
+			document.getElementById('browser-count').textContent = Object.keys(browserCounts).length;
 			
 			// Group taps by day
 			const tapsByDay = {};
@@ -343,9 +413,17 @@
 			const recentList = document.getElementById('recent-list');
 			recentList.innerHTML = taps.slice(0, 20).map(tap => {
 				const timeAgo = getTimeAgo(tap.date);
+				const flag = countryToFlag(tap.country);
+				const browser = tap.browser || 'Other';
 				return `
 					<div class="tap-item">
-						<span class="tap-device">${tap.device}</span>
+						<div class="tap-info">
+							<span class="tap-flag">${flag}</span>
+							<div>
+								<div class="tap-device">${tap.device}</div>
+								<div class="tap-browser">${browser}</div>
+							</div>
+						</div>
 						<span class="tap-time">${timeAgo}</span>
 					</div>
 				`;
