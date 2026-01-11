@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>maique.rocks - secret stats</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+		
+		body {
+			font-family: 'Inter', sans-serif;
+			background: #231206;
+			color: #fdab00;
+			padding: 40px 20px;
+			min-height: 100vh;
+		}
+		
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+		}
+		
+		h1 {
+			font-family: 'Archivo Black', sans-serif;
+			font-size: 3rem;
+			margin-bottom: 10px;
+			color: #fdab00;
+		}
+		
+		.subtitle {
+			color: #fdab0080;
+			margin-bottom: 40px;
+			font-size: 0.9rem;
+		}
+		
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+			gap: 20px;
+			margin-bottom: 40px;
+		}
+		
+		.stat-card {
+			background: #3a2410;
+			padding: 30px;
+			border-radius: 12px;
+			border: 2px solid #fdab0030;
+		}
+		
+		.stat-label {
+			font-size: 0.8rem;
+			color: #fdab0080;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			margin-bottom: 10px;
+		}
+		
+		.stat-value {
+			font-family: 'Archivo Black', sans-serif;
+			font-size: 3rem;
+			color: #fdab00;
+		}
+		
+		.chart-container {
+			background: #3a2410;
+			padding: 30px;
+			border-radius: 12px;
+			border: 2px solid #fdab0030;
+			margin-bottom: 40px;
+		}
+		
+		.chart-title {
+			font-family: 'Archivo Black', sans-serif;
+			font-size: 1.5rem;
+			margin-bottom: 20px;
+			color: #fdab00;
+		}
+		
+		canvas {
+			max-width: 100%;
+		}
+		
+		.recent-taps {
+			background: #3a2410;
+			padding: 30px;
+			border-radius: 12px;
+			border: 2px solid #fdab0030;
+			max-height: 400px;
+			overflow-y: auto;
+		}
+		
+		.tap-item {
+			padding: 15px;
+			border-bottom: 1px solid #fdab0020;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		
+		.tap-item:last-child {
+			border-bottom: none;
+		}
+		
+		.tap-device {
+			font-weight: 600;
+			color: #fdab00;
+		}
+		
+		.tap-time {
+			color: #fdab0080;
+			font-size: 0.9rem;
+		}
+		
+		.loading {
+			text-align: center;
+			padding: 60px;
+			font-size: 1.2rem;
+			color: #fdab0080;
+		}
+		
+		.emoji {
+			font-size: 2rem;
+			margin-bottom: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>🤟🏼 secret stats</h1>
+		<div class="subtitle">maique.rocks analytics dashboard</div>
+		
+		<div id="loading" class="loading">
+			<div class="emoji">⏳</div>
+			Loading tap data...
+		</div>
+		
+		<div id="dashboard" style="display: none;">
+			<div class="stats-grid">
+				<div class="stat-card">
+					<div class="stat-label">Total Taps</div>
+					<div class="stat-value" id="total-taps">0</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">iOS Taps</div>
+					<div class="stat-value" id="ios-taps">0</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">Desktop Taps</div>
+					<div class="stat-value" id="desktop-taps">0</div>
+				</div>
+				
+				<div class="stat-card">
+					<div class="stat-label">Android Taps</div>
+					<div class="stat-value" id="android-taps">0</div>
+				</div>
+			</div>
+			
+			<div class="chart-container">
+				<div class="chart-title">Taps Over Time</div>
+				<canvas id="taps-chart"></canvas>
+			</div>
+			
+			<div class="chart-container">
+				<div class="chart-title">Taps by Hour of Day</div>
+				<canvas id="hourly-chart"></canvas>
+			</div>
+			
+			<div class="recent-taps">
+				<div class="chart-title">Recent Taps</div>
+				<div id="recent-list"></div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Chart.js -->
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	
+	<!-- Firebase -->
+	<script type="module">
+		import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+		import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+		const firebaseConfig = {
+			apiKey: "AIzaSyClxV9DCZ8CQpytwlPymRMF63Uva6xVl_g",
+			authDomain: "maique-rocks.firebaseapp.com",
+			databaseURL: "https://maique-rocks-default-rtdb.europe-west1.firebasedatabase.app",
+			projectId: "maique-rocks",
+			storageBucket: "maique-rocks.firebasestorage.app",
+			messagingSenderId: "796389588734",
+			appId: "1:796389588734:web:e063805ec5814776032faf"
+		};
+
+		const app = initializeApp(firebaseConfig);
+		const database = getDatabase(app);
+		const tapsRef = ref(database, 'taps');
+
+		let tapsChart = null;
+		let hourlyChart = null;
+
+		// Listen for tap data
+		onValue(tapsRef, (snapshot) => {
+			const data = snapshot.val();
+			
+			if (!data) {
+				document.getElementById('loading').style.display = 'block';
+				document.getElementById('dashboard').style.display = 'none';
+				return;
+			}
+			
+			// Hide loading, show dashboard
+			document.getElementById('loading').style.display = 'none';
+			document.getElementById('dashboard').style.display = 'block';
+			
+			// Convert to array
+			const taps = Object.entries(data).map(([id, tap]) => ({
+				id,
+				...tap,
+				date: new Date(tap.timestamp)
+			})).sort((a, b) => b.date - a.date);
+			
+			// Calculate stats
+			const total = taps.length;
+			const ios = taps.filter(t => t.device === 'iOS').length;
+			const desktop = taps.filter(t => t.device === 'Desktop').length;
+			const android = taps.filter(t => t.device === 'Android').length;
+			
+			// Update stat cards
+			document.getElementById('total-taps').textContent = total;
+			document.getElementById('ios-taps').textContent = ios;
+			document.getElementById('desktop-taps').textContent = desktop;
+			document.getElementById('android-taps').textContent = android;
+			
+			// Group taps by day
+			const tapsByDay = {};
+			taps.forEach(tap => {
+				const day = tap.date.toISOString().split('T')[0];
+				tapsByDay[day] = (tapsByDay[day] || 0) + 1;
+			});
+			
+			// Sort days
+			const days = Object.keys(tapsByDay).sort();
+			const dayCounts = days.map(day => tapsByDay[day]);
+			
+			// Update or create taps over time chart
+			if (tapsChart) {
+				tapsChart.data.labels = days;
+				tapsChart.data.datasets[0].data = dayCounts;
+				tapsChart.update();
+			} else {
+				const ctx = document.getElementById('taps-chart').getContext('2d');
+				tapsChart = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels: days,
+						datasets: [{
+							label: 'Taps per Day',
+							data: dayCounts,
+							borderColor: '#fdab00',
+							backgroundColor: '#fdab0020',
+							tension: 0.4,
+							fill: true
+						}]
+					},
+					options: {
+						responsive: true,
+						plugins: {
+							legend: { display: false }
+						},
+						scales: {
+							y: {
+								beginAtZero: true,
+								ticks: { color: '#fdab0080' },
+								grid: { color: '#fdab0020' }
+							},
+							x: {
+								ticks: { color: '#fdab0080' },
+								grid: { color: '#fdab0020' }
+							}
+						}
+					}
+				});
+			}
+			
+			// Group taps by hour
+			const tapsByHour = {};
+			for (let i = 0; i < 24; i++) {
+				tapsByHour[i] = 0;
+			}
+			taps.forEach(tap => {
+				const hour = tap.date.getHours();
+				tapsByHour[hour]++;
+			});
+			
+			const hours = Object.keys(tapsByHour).map(h => `${h}:00`);
+			const hourCounts = Object.values(tapsByHour);
+			
+			// Update or create hourly chart
+			if (hourlyChart) {
+				hourlyChart.data.datasets[0].data = hourCounts;
+				hourlyChart.update();
+			} else {
+				const ctx2 = document.getElementById('hourly-chart').getContext('2d');
+				hourlyChart = new Chart(ctx2, {
+					type: 'bar',
+					data: {
+						labels: hours,
+						datasets: [{
+							label: 'Taps by Hour',
+							data: hourCounts,
+							backgroundColor: '#fdab00',
+						}]
+					},
+					options: {
+						responsive: true,
+						plugins: {
+							legend: { display: false }
+						},
+						scales: {
+							y: {
+								beginAtZero: true,
+								ticks: { color: '#fdab0080' },
+								grid: { color: '#fdab0020' }
+							},
+							x: {
+								ticks: { color: '#fdab0080' },
+								grid: { color: '#fdab0020' }
+							}
+						}
+					}
+				});
+			}
+			
+			// Show recent taps (last 20)
+			const recentList = document.getElementById('recent-list');
+			recentList.innerHTML = taps.slice(0, 20).map(tap => {
+				const timeAgo = getTimeAgo(tap.date);
+				return `
+					<div class="tap-item">
+						<span class="tap-device">${tap.device}</span>
+						<span class="tap-time">${timeAgo}</span>
+					</div>
+				`;
+			}).join('');
+		});
+		
+		function getTimeAgo(date) {
+			const seconds = Math.floor((new Date() - date) / 1000);
+			
+			if (seconds < 60) return 'just now';
+			if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+			if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+			return `${Math.floor(seconds / 86400)}d ago`;
+		}
+	</script>
+</body>
+</html>
